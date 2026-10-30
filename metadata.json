@@ -1,0 +1,6 @@
+{
+  "name": "AutoWebP Pro - Penukar Gambar WebP Kelompok",
+  "description": "Aplikasi penukar format gambar ke WebP secara automatik dengan pemampatan berkualiti tinggi, pengubahan saiz pukal, arkib ZIP, sokongan luar talian, dan integrasi storan awan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <!-- Background with smooth squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#bg)" />
+  <rect x="16" y="16" width="480" height="480" rx="112" stroke="white" stroke-opacity="0.08" stroke-width="8" />
+  
+  <!-- Outer Ring Elements -->
+  <circle cx="256" cy="256" r="160" stroke="#334155" stroke-width="8" stroke-dasharray="16 12" />
+
+  <!-- Center Batch conversion icon -->
+  <!-- Back card -->
+  <rect x="140" y="120" width="180" height="180" rx="24" fill="#334155" fill-opacity="0.5" stroke="#475569" stroke-width="6" transform="rotate(-8 140 120)" />
+  
+  <!-- Front card -->
+  <rect x="166" y="156" width="200" height="200" rx="28" fill="url(#accent)" />
+  
+  <!-- Mountain & sun glyph inside front card -->
+  <circle cx="216" cy="216" r="18" fill="#F8FAFC" />
+  <path d="M186 316 L236 246 L276 296 L306 266 L346 316 Z" fill="#F8FAFC" fill-opacity="0.9" />
+  
+  <!-- WebP Lightning conversion badge -->
+  <circle cx="340" cy="340" r="56" fill="url(#glow)" />
+  <path d="M344 308 L320 338 L338 338 L332 372 L360 334 L342 334 Z" fill="white" />
+</svg>

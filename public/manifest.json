@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "AutoWebP Pro - Batch WebP Converter",
+  "short_name": "AutoWebP",
+  "description": "Penukar format imej ke WebP automatik dengan mampatan berkualiti tinggi dan pengubahan saiz.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "categories": ["utilities", "productivity", "photo"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
