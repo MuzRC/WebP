@@ -4,6 +4,7 @@ export interface SliceOptions {
   threshold?: number;
   quality?: number;
   baseName?: string;
+  customNames?: string[]; // <-- 1. TAMBAHAN DI SINI: sokongan senarai nama pukal
 }
 
 export interface SlicedSprite {
@@ -77,14 +78,15 @@ export function trimCanvas(canvas: HTMLCanvasElement, padding = 8): HTMLCanvasEl
   return trimmedCanvas;
 }
 
-// 3. Hiris imej grid dan hasilkan senarai WebP Blob
+// 3. Hiris imej grid dan hasilkan senarai WebP Blob mengikut nama kustom
 export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = {}): Promise<SlicedSprite[]> {
   const {
     rows = 3,
     cols = 3,
     threshold = 240,
     quality = 0.9,
-    baseName = 'kenderaan'
+    baseName = 'kenderaan',
+    customNames = []
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -125,9 +127,15 @@ export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = 
             finalCanvas.toBlob(res, 'image/webp', quality);
           });
 
+          // <-- 2. TAMBAHAN DI SINI: Tentukan sama ada guna nama dari senarai custom atau nombor siri
+          const rawCustomName = customNames[index - 1]?.trim();
+          const cleanName = rawCustomName
+            ? (rawCustomName.endsWith('.webp') ? rawCustomName : `${rawCustomName}.webp`)
+            : `${baseName}_${index}.webp`;
+
           if (blob) {
             results.push({
-              name: `${baseName}_${index}.webp`,
+              name: cleanName,
               blob,
               dataUrl: finalCanvas.toDataURL('image/webp', quality),
               width: finalCanvas.width,
