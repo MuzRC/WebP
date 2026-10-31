@@ -311,3 +311,109 @@ export async function createSampleImage(type: 'landscape' | 'product' | 'graphic
   };
   return new File([blob], fileNames[type], { type: 'image/png' });
 }
+/**
+ * Memotong sprite sheet grid (contoh: 8 lajur x 6 baris untuk 48 avatar)
+ * dan menukarnya terus ke format WebP individual.
+ */
+export async function sliceSpriteSheet(
+  file: File,
+  cols: number = 8,
+  rows: number = 6,
+  customNames: string[] = [],
+  quality: number = 90,
+  onProgress?: (pct: number) => void
+): Promise<ConvertResult[]> {
+  onProgress?.(10);
+
+  // 1. Baca fail imej ke dalam Image Element
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error(`Gagal membaca helaian sprite: ${file.name}`));
+    };
+    img.src = objectUrl;
+  });
+
+  const totalCells = cols * rows;
+  const cellWidth = Math.floor(img.naturalWidth / cols);
+  const cellHeight = Math.floor(img.naturalHeight / rows);
+
+  if (cellWidth <= 0 || cellHeight <= 0) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error('Resolusi gambar terlalu kecil untuk dibahagikan mengikut grid ini.');
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cellWidth;
+  canvas.height = cellHeight;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error('Gagal mendapatkan 2D Context pelayar.');
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const results: ConvertResult[] = [];
+  const qualityNormalized = Math.min(Math.max(quality / 100, 0.05), 1.0);
+
+  let currentIndex = 0;
+
+  // 2. Gelung mengikut baris (rows) dan lajur (cols)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      ctx.clearRect(0, 0, cellWidth, cellHeight);
+
+      // Potong kotak spesifik dari sprite sheet
+      ctx.drawImage(
+        img,
+        c * cellWidth,
+        r * cellHeight,
+        cellWidth,
+        cellHeight,
+        0,
+        0,
+        cellWidth,
+        cellHeight
+      );
+
+      // Tukar kepada WebP Blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Gagal proses blob.'))),
+          'image/webp',
+          qualityNormalized
+        );
+      });
+
+      // Tentukan nama fail (guna nama textarea jika ada, atau nama auto berformat 01-48)
+      const rawName = customNames[currentIndex]?.trim();
+      const defaultName = `student_boy_${String(currentIndex + 1).padStart(2, '0')}`;
+      const finalFileName = rawName ? `${rawName}.webp` : `${defaultName}.webp`;
+
+      results.push({
+        blob,
+        url: URL.createObjectURL(blob),
+        width: cellWidth,
+        height: cellHeight,
+        size: blob.size,
+        fileName: finalFileName,
+      });
+
+      currentIndex++;
+      const currentPct = 10 + Math.round((currentIndex / totalCells) * 85);
+      onProgress?.(currentPct);
+    }
+  }
+
+  URL.revokeObjectURL(objectUrl);
+  onProgress?.(100);
+
+  return results;
+}
