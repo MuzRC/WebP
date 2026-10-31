@@ -1,6 +1,10 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import JSZip from 'jszip';
 import { ImageItem } from '../types';
-import { generateOutputFileName } from './imageConverter';
 
 export function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
@@ -13,33 +17,33 @@ export function downloadBlob(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+/**
+ * Muat turun semua fail WebP yang siap sebagai arkib ZIP pukal
+ */
 export async function downloadBatchAsZip(
   items: ImageItem[],
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  customZipName?: string
 ): Promise<void> {
   const completed = items.filter((item) => item.status === 'completed' && item.convertedBlob);
   if (completed.length === 0) return;
 
   const zip = new JSZip();
-  const folder = zip.folder('AutoWebP_Export') || zip;
+  // Gunakan nama folder kemas di dalam zip
+  const folder = zip.folder('AutoWebP_Avatars') || zip;
 
-  // Track filenames to avoid duplicates
+  // Pantau nama fail bagi mengelakkan pertindihan nama
   const nameCounts: Record<string, number> = {};
 
   for (const item of completed) {
-    let name = generateOutputFileName(item.name, {
-      quality: 80,
-      resizeMode: 'none',
-      customWidth: 0,
-      customHeight: 0,
-      maintainAspectRatio: true,
-      fileNaming: 'default',
-      namingCustomText: '',
-      autoProcessOnUpload: false,
-      enableSoundNotification: false,
-      enableDesktopNotification: false,
-    });
+    // 1. Utamakan convertedName (nama dari textarea potong sprite)
+    // Jika tiada, gunakan nama fail asal dan pastikan ia berformat .webp
+    let rawName = (item as any).convertedName || item.name;
+    let name = rawName.toLowerCase().endsWith('.webp') 
+      ? rawName 
+      : `${rawName.replace(/\.[^/.]+$/, '')}.webp`;
 
+    // 2. Elak nama bertindih (contoh: student_boy_01_2.webp)
     if (nameCounts[name]) {
       nameCounts[name]++;
       const dot = name.lastIndexOf('.');
@@ -53,6 +57,7 @@ export async function downloadBatchAsZip(
     }
   }
 
+  // 3. Jana fail ZIP dengan penunjuk peratusan
   const content = await zip.generateAsync(
     {
       type: 'blob',
@@ -65,10 +70,13 @@ export async function downloadBatchAsZip(
   );
 
   const timestamp = new Date().toISOString().slice(0, 10);
-  downloadBlob(content, `AutoWebP_Batch_${timestamp}.zip`);
+  const finalZipFileName = customZipName || `AutoWebP_Avatars_48_${timestamp}.zip`;
+  downloadBlob(content, finalZipFileName);
 }
 
-// Modern File System Access API (Direct Directory Save)
+/**
+ * Simpan terus kesemua fail ke folder komputer (Chrome / Edge Chromium)
+ */
 export async function saveToDeviceFolder(
   items: ImageItem[],
   onStatusUpdate?: (msg: string) => void
@@ -78,16 +86,20 @@ export async function saveToDeviceFolder(
     return { success: false, count: 0, message: 'Tiada fail selesai untuk disimpan.' };
   }
 
-  // Check if browser supports showDirectoryPicker
   if ('showDirectoryPicker' in window) {
     try {
-      // @ts-expect-error Window directory picker is standard in modern Chromium/Edge
+      // @ts-expect-error Window directory picker disokong pada Chromium
       const dirHandle = await window.showDirectoryPicker();
       let savedCount = 0;
 
       for (const item of completed) {
         if (!item.convertedBlob) continue;
-        const fileName = item.name.replace(/\.[^/.]+$/, '') + '.webp';
+
+        let rawName = (item as any).convertedName || item.name;
+        const fileName = rawName.toLowerCase().endsWith('.webp')
+          ? rawName
+          : `${rawName.replace(/\.[^/.]+$/, '')}.webp`;
+
         onStatusUpdate?.(`Menyimpan ${fileName}...`);
 
         const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
@@ -107,16 +119,16 @@ export async function saveToDeviceFolder(
         return { success: false, count: 0, message: 'Pemilihan folder dibatalkan.' };
       }
       console.error('File System Access API error:', err);
-      // Fallback to ZIP
+      // Sandaran terus ke ZIP jika ada sekatan folder
       await downloadBatchAsZip(items);
       return {
         success: true,
         count: completed.length,
-        message: 'Folder access ditolak, fail dimuat turun sebagai fail ZIP.',
+        message: 'Folder access tidak dibenarkan, fail dimuat turun sebagai ZIP.',
       };
     }
   } else {
-    // Graceful fallback to ZIP
+    // Sandaran automatik jika guna pelayar selain Chromium
     await downloadBatchAsZip(items);
     return {
       success: true,
@@ -126,23 +138,29 @@ export async function saveToDeviceFolder(
   }
 }
 
-// Native Web Share API
+/**
+ * Kongsi fail guna perkongsian natif peranti (Web Share API)
+ */
 export async function shareViaWebShare(items: ImageItem[]): Promise<boolean> {
   const completed = items.filter((item) => item.status === 'completed' && item.convertedBlob);
   if (completed.length === 0) return false;
 
   if (navigator.share && navigator.canShare) {
     try {
+      // Hadkan kepada 10 fail pertama kerana kekangan OS/browser share sheet
       const files: File[] = completed.slice(0, 10).map((item) => {
-        const name = item.name.replace(/\.[^/.]+$/, '') + '.webp';
+        let rawName = (item as any).convertedName || item.name;
+        const name = rawName.toLowerCase().endsWith('.webp')
+          ? rawName
+          : `${rawName.replace(/\.[^/.]+$/, '')}.webp`;
         return new File([item.convertedBlob!], name, { type: 'image/webp' });
       });
 
       if (navigator.canShare({ files })) {
         await navigator.share({
           files,
-          title: 'AutoWebP Pro Converted Images',
-          text: `Berikut adalah fail WebP yang telah dioptimumkan menggunakan AutoWebP Pro.`,
+          title: 'AutoWebP Pro Avatars',
+          text: `Berikut adalah fail avatar WebP yang telah siap dipotong.`,
         });
         return true;
       }
