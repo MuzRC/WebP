@@ -56,3 +56,30 @@ export interface ConversionSummary {
   totalSavedBytes: number;
   averageSavingsPercent: number;
 }
+
+// ==========================================
+// JENIS DATA BAHARU (Android Icons & Sprite)
+// ==========================================
+
+export interface AndroidIconFile {
+  relativePath: string; // Contoh: "icon.png" atau "res/mipmap-xxhdpi/ic_launcher.png"
+  blob: Blob;
+}
+
+export interface SliceOptions {
+  rows?: number;
+  cols?: number;
+  threshold?: number;
+  quality?: number;
+  baseName?: string;
+  customNames?: string[];
+  removeBgPerCell?: boolean;
+}
+
+export interface SlicedSprite {
+  name: string;
+  blob: Blob;
+  dataUrl: string;
+  width: number;
+  height: number;
+}
