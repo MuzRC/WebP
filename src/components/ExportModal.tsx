@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, Archive, FolderCheck, Cloud, Share2, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Archive, FolderCheck, Cloud, Share2, Check, AlertCircle, Loader2, Smartphone } from 'lucide-react';
 import { ImageItem, Language } from '../types';
 import { getTranslation } from '../i18n/translations';
-import { downloadBatchAsZip, saveToDeviceFolder, shareViaWebShare } from '../services/exportService';
+import { downloadBatchAsZip, saveToDeviceFolder, shareViaWebShare, downloadAndroidIconsZip } from '../services/exportService';
 import { formatBytes } from '../services/imageConverter';
 
 interface ExportModalProps {
@@ -20,6 +20,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const t = getTranslation(lang);
   const [zipProgress, setZipProgress] = useState<number | null>(null);
+  const [androidProgress, setAndroidProgress] = useState<number | null>(null);
   const [folderStatus, setFolderStatus] = useState<string | null>(null);
   const [activeMessage, setActiveMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
 
@@ -46,6 +47,29 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
+  // Fungsi baharu untuk jana fail ikon Android (res/ dan icon.png)
+  const handleExportAndroidIcons = async () => {
+    const targetItem = completed[0] || items[0];
+    if (!targetItem) {
+      setActiveMessage({ type: 'error', text: 'Tiada imej sedia untuk dijadikan ikon.' });
+      return;
+    }
+
+    try {
+      setAndroidProgress(10);
+      await downloadAndroidIconsZip(targetItem, (pct) => setAndroidProgress(pct));
+      setActiveMessage({
+        type: 'success',
+        text: `Pakej ikon APK Android berjaya dijana (icon.png & folder res/mipmap)!`,
+      });
+      setTimeout(() => setAndroidProgress(null), 1000);
+    } catch (err) {
+      console.error('Android icons export failed:', err);
+      setAndroidProgress(null);
+      setActiveMessage({ type: 'error', text: 'Gagal menjana pakej ikon Android.' });
+    }
+  };
+
   const handleSaveToFolder = async () => {
     setFolderStatus('Menyediakan folder...');
     const result = await saveToDeviceFolder(completed, (status) => setFolderStatus(status));
@@ -58,12 +82,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   const handleExportGoogleDrive = () => {
-    // 1. First trigger ZIP generation so user has all compressed files
     handleDownloadZip();
-    
-    // 2. Open Google Drive upload web app in a new tab so user can immediately drop the bundle
     window.open('https://drive.google.com/drive/my-drive', '_blank', 'noopener,noreferrer');
-    
     setActiveMessage({
       type: 'success',
       text: 'Arkib ZIP sedang dimuat turun dan Google Drive dibuka. Anda boleh terus melepaskan fail ke dalam folder Google Drive anda!',
@@ -79,9 +99,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-xl max-h-[90vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               {t.exportModalTitle}
@@ -100,7 +120,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </div>
 
         {/* Content body */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto">
           {activeMessage && (
             <div
               className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
@@ -120,7 +140,38 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
           )}
 
-          {/* Option 1: ZIP Archive */}
+          {/* Option 1: Set Ikon APK Android (res/ & icon.png) */}
+          <div className="border border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 dark:hover:border-indigo-700 rounded-xl p-4 transition-colors flex items-start gap-3.5 bg-indigo-50/40 dark:bg-indigo-950/20">
+            <div className="p-2.5 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 shrink-0">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>{(t as any).exportAndroidTitle || 'Pakej Ikon APK Android'}</span>
+                <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 px-1.5 py-0.5 rounded-full font-medium">Auto-Res</span>
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {(t as any).exportAndroidDesc || 'Jana icon.png (1024px) & susunan folder res/mipmap (mdpi ke xxxhdpi) sedia ekstrak untuk binaan APK / Capacitor.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleExportAndroidIcons}
+                disabled={androidProgress !== null || (completed.length === 0 && items.length === 0)}
+                className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {androidProgress !== null ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Menjana Ikon APK ({androidProgress}%)...</span>
+                  </>
+                ) : (
+                  <span>{(t as any).exportAndroidAction || 'Muat Turun Ikon APK (.ZIP)'}</span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Option 2: ZIP Archive Biasa */}
           <div className="border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-900 rounded-xl p-4 transition-colors flex items-start gap-3.5 bg-slate-50/50 dark:bg-slate-950/30">
             <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shrink-0">
               <Archive className="w-5 h-5" />
@@ -135,7 +186,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadZip}
-                disabled={zipProgress !== null}
+                disabled={zipProgress !== null || completed.length === 0}
                 className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
                 {zipProgress !== null ? (
@@ -150,7 +201,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
           </div>
 
-          {/* Option 2: Direct Device Folder Save */}
+          {/* Option 3: Direct Device Folder Save */}
           <div className="border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-900 rounded-xl p-4 transition-colors flex items-start gap-3.5 bg-slate-50/50 dark:bg-slate-950/30">
             <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 shrink-0">
               <FolderCheck className="w-5 h-5" />
@@ -165,7 +216,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <button
                 type="button"
                 onClick={handleSaveToFolder}
-                disabled={folderStatus !== null}
+                disabled={folderStatus !== null || completed.length === 0}
                 className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
                 {folderStatus ? (
@@ -180,7 +231,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
           </div>
 
-          {/* Option 3: Google Drive Cloud Storage */}
+          {/* Option 4: Google Drive Cloud Storage */}
           <div className="border border-slate-200 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-900 rounded-xl p-4 transition-colors flex items-start gap-3.5 bg-slate-50/50 dark:bg-slate-950/30">
             <div className="p-2.5 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 shrink-0">
               <Cloud className="w-5 h-5" />
@@ -195,14 +246,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <button
                 type="button"
                 onClick={handleExportGoogleDrive}
-                className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer"
+                disabled={completed.length === 0}
+                className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
                 <span>{t.exportDriveAction}</span>
               </button>
             </div>
           </div>
 
-          {/* Option 4: Quick Share (if supported) */}
+          {/* Option 5: Quick Share (if supported) */}
           {typeof navigator !== 'undefined' && 'share' in navigator && (
             <div className="border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-900 rounded-xl p-4 transition-colors flex items-start gap-3.5 bg-slate-50/50 dark:bg-slate-950/30">
               <div className="p-2.5 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 shrink-0">
@@ -218,7 +270,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors cursor-pointer"
+                  disabled={completed.length === 0}
+                  className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <span>{t.exportShareAction}</span>
                 </button>
@@ -228,7 +281,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+        <div className="px-6 py-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
