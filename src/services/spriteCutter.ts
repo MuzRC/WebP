@@ -1,21 +1,9 @@
-export interface SliceOptions {
-  rows?: number;
-  cols?: number;
-  threshold?: number;
-  quality?: number;
-  baseName?: string;
-  customNames?: string[];
-}
+import { AndroidIconFile, SliceOptions, SlicedSprite } from '../types';
 
-export interface SlicedSprite {
-  name: string;
-  blob: Blob;
-  dataUrl: string;
-  width: number;
-  height: number;
-}
+// Eksport semula types sekiranya ada komponen lama yang masih import dari fail ini
+export type { AndroidIconFile, SliceOptions, SlicedSprite };
 
-// 1. Buang latar belakang putih secara pintar guna algoritma Flood Fill (hanya buang putih luar, lindungi kereta putih)
+// 1. Buang latar belakang putih pintar & pantas (O(1) BFS Queue elak browser lag)
 export function removeBackground(canvas: HTMLCanvasElement, threshold = 240): HTMLCanvasElement {
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
@@ -23,65 +11,60 @@ export function removeBackground(canvas: HTMLCanvasElement, threshold = 240): HT
   const { width, height } = canvas;
   const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
+  const totalPixels = width * height;
 
-  // Queue untuk carian BFS (Breadth-First Search)
-  const queue: [number, number][] = [];
-  const visited = new Uint8Array(width * height);
+  const visited = new Uint8Array(totalPixels);
+  const queue = new Int32Array(totalPixels);
+  let head = 0;
+  let tail = 0;
 
-  // Semak sama ada piksel hampir putih
-  const isBackgroundWhite = (r: number, g: number, b: number) => {
-    return r >= threshold && g >= threshold && b >= threshold;
+  const isBackgroundWhite = (pIdx: number) => {
+    return (
+      data[pIdx] >= threshold &&
+      data[pIdx + 1] >= threshold &&
+      data[pIdx + 2] >= threshold
+    );
   };
 
-  // Masukkan piksel yang sah dari sempadan luar ke dalam queue
   const pushIfBorderWhite = (x: number, y: number) => {
     const idx = y * width + x;
     if (visited[idx]) return;
     visited[idx] = 1;
-    const pIdx = idx * 4;
-    if (isBackgroundWhite(data[pIdx], data[pIdx + 1], data[pIdx + 2])) {
-      queue.push([x, y]);
+    if (isBackgroundWhite(idx * 4)) {
+      queue[tail++] = idx;
     }
   };
 
-  // 1. Tandakan semua bucu sekeliling kanvas (Atas, Bawah, Kiri, Kanan) sebagai 'seeding start'
+  // Seeding dari 4 sempadan luar kanvas
   for (let x = 0; x < width; x++) {
-    pushIfBorderWhite(x, 0); // baris atas
-    pushIfBorderWhite(x, height - 1); // baris bawah
+    pushIfBorderWhite(x, 0);
+    pushIfBorderWhite(x, height - 1);
   }
   for (let y = 0; y < height; y++) {
-    pushIfBorderWhite(0, y); // lajur kiri
-    pushIfBorderWhite(width - 1, y); // lajur kanan
+    pushIfBorderWhite(0, y);
+    pushIfBorderWhite(width - 1, y);
   }
 
-  // 2. BFS Flood Fill: Banjiri dan padam hanya kawasan putih yang bersambung dari luar
-  while (queue.length > 0) {
-    const [cx, cy] = queue.shift()!;
-    const idx = cy * width + cx;
+  // BFS Flood Fill tanpa overhead memory
+  while (head < tail) {
+    const idx = queue[head++];
     const pIdx = idx * 4;
+    data[pIdx + 3] = 0; // Set Alpha = 0 (Transparent)
 
-    // Tukar piksel luar yang bersambung kepada telus (Alpha = 0)
-    data[pIdx + 3] = 0;
+    const cx = idx % width;
+    const cy = Math.floor(idx / width);
 
-    // Periksa 4 arah jiran (Atas, Bawah, Kiri, Kanan)
-    const neighbors = [
-      [cx + 1, cy],
-      [cx - 1, cy],
-      [cx, cy + 1],
-      [cx, cy - 1]
-    ];
+    if (cx + 1 < width) checkNeighbor(idx + 1);
+    if (cx - 1 >= 0) checkNeighbor(idx - 1);
+    if (cy + 1 < height) checkNeighbor(idx + width);
+    if (cy - 1 >= 0) checkNeighbor(idx - width);
+  }
 
-    for (const [nx, ny] of neighbors) {
-      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-        const nIdx = ny * width + nx;
-        if (!visited[nIdx]) {
-          visited[nIdx] = 1;
-          const npIdx = nIdx * 4;
-          // Hanya teruskan banjiran jika ia adalah warna putih latar belakang
-          if (isBackgroundWhite(data[npIdx], data[npIdx + 1], data[npIdx + 2])) {
-            queue.push([nx, ny]);
-          }
-        }
+  function checkNeighbor(nIdx: number) {
+    if (!visited[nIdx]) {
+      visited[nIdx] = 1;
+      if (isBackgroundWhite(nIdx * 4)) {
+        queue[tail++] = nIdx;
       }
     }
   }
@@ -131,7 +114,7 @@ export function trimCanvas(canvas: HTMLCanvasElement, padding = 8): HTMLCanvasEl
   return trimmedCanvas;
 }
 
-// 3. Hiris imej grid dan hasilkan senarai WebP Blob mengikut nama kustom
+// 3. Hiris imej grid sprite sheet
 export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = {}): Promise<SlicedSprite[]> {
   const {
     rows = 3,
@@ -139,7 +122,8 @@ export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = 
     threshold = 240,
     quality = 0.9,
     baseName = 'kenderaan',
-    customNames = []
+    customNames = [],
+    removeBgPerCell = true
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -147,6 +131,8 @@ export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = 
     img.crossOrigin = 'anonymous';
 
     img.onload = async () => {
+      URL.revokeObjectURL(img.src);
+
       const mainCanvas = document.createElement('canvas');
       mainCanvas.width = img.width;
       mainCanvas.height = img.height;
@@ -174,13 +160,16 @@ export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = 
             0, 0, cellW, cellH
           );
 
+          if (removeBgPerCell) {
+            removeBackground(cellCanvas, threshold);
+          }
+
           const finalCanvas = trimCanvas(cellCanvas, 8);
 
           const blob = await new Promise<Blob | null>(res => {
             finalCanvas.toBlob(res, 'image/webp', quality);
           });
 
-          // Tentukan sama ada guna nama dari senarai custom atau nombor siri
           const rawCustomName = customNames[index - 1]?.trim();
           const cleanName = rawCustomName
             ? (rawCustomName.endsWith('.webp') ? rawCustomName : `${rawCustomName}.webp`)
@@ -203,7 +192,101 @@ export async function sliceSpriteSheet(imageFile: File, options: SliceOptions = 
       resolve(results);
     };
 
-    img.onerror = reject;
+    img.onerror = (err) => {
+      URL.revokeObjectURL(img.src);
+      reject(err);
+    };
+
     img.src = URL.createObjectURL(imageFile);
   });
+}
+
+// 4. Jana semua saiz fail ikon Android mengikut struktur folder APK / Capacitor
+export async function generateAndroidIconFiles(
+  source: File | HTMLCanvasElement
+): Promise<AndroidIconFile[]> {
+  let sourceCanvas: HTMLCanvasElement;
+
+  if (source instanceof HTMLCanvasElement) {
+    sourceCanvas = source;
+  } else {
+    sourceCanvas = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        resolve(c);
+      };
+      img.onerror = (err) => {
+        URL.revokeObjectURL(img.src);
+        reject(err);
+      };
+      img.src = URL.createObjectURL(source);
+    });
+  }
+
+  const renderCanvas = (size: number, isRound = false): Promise<Blob> => {
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d');
+    if (!ctx) throw new Error('Context canvas gagal dicipta');
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if (isRound) {
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+    }
+
+    ctx.drawImage(sourceCanvas, 0, 0, size, size);
+
+    return new Promise((res, rej) => {
+      c.toBlob((b) => (b ? res(b) : rej(new Error('Gagal jana blob'))), 'image/png', 1.0);
+    });
+  };
+
+  const files: AndroidIconFile[] = [];
+
+  // A. Master icon.png di root (1024x1024)
+  const masterBlob = await renderCanvas(1024, false);
+  files.push({ relativePath: 'icon.png', blob: masterBlob });
+
+  // B. Konfigurasi 5 folder density rasmi Android di bawah folder 'res/'
+  const densities = [
+    { name: 'mipmap-mdpi', icon: 48, fg: 108 },
+    { name: 'mipmap-hdpi', icon: 72, fg: 162 },
+    { name: 'mipmap-xhdpi', icon: 96, fg: 216 },
+    { name: 'mipmap-xxhdpi', icon: 144, fg: 324 },
+    { name: 'mipmap-xxxhdpi', icon: 192, fg: 432 },
+  ];
+
+  for (const d of densities) {
+    // 1. ic_launcher.png (Standard)
+    files.push({
+      relativePath: `res/${d.name}/ic_launcher.png`,
+      blob: await renderCanvas(d.icon, false),
+    });
+
+    // 2. ic_launcher_round.png (Bulat)
+    files.push({
+      relativePath: `res/${d.name}/ic_launcher_round.png`,
+      blob: await renderCanvas(d.icon, true),
+    });
+
+    // 3. ic_launcher_foreground.png (Adaptive Foreground)
+    files.push({
+      relativePath: `res/${d.name}/ic_launcher_foreground.png`,
+      blob: await renderCanvas(d.fg, false),
+    });
+  }
+
+  return files;
 }
