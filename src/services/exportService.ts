@@ -5,6 +5,7 @@
 
 import JSZip from 'jszip';
 import { ImageItem } from '../types';
+import { generateAndroidIconFiles } from './spriteCutter';
 
 export function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
@@ -171,4 +172,53 @@ export async function shareViaWebShare(items: ImageItem[]): Promise<boolean> {
     }
   }
   return false;
+}
+
+// ============================================================================
+// FUNGSI BAHARU: Eksport Arkib Ikon APK Mengikut Struktur Folder Android (res/)
+// ============================================================================
+
+/**
+ * Muat turun arkib ZIP mengandungi:
+ * - icon.png (1024x1024) di paras luar (root)
+ * - res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/
+ *   └── ic_launcher.png, ic_launcher_round.png, ic_launcher_foreground.png
+ */
+export async function downloadAndroidIconsZip(
+  source: ImageItem | File | Blob | HTMLCanvasElement,
+  onProgress?: (percent: number) => void,
+  zipFileName = 'android_mipmap_icons.zip'
+): Promise<void> {
+  // Ekstrak sumber imej yang sah (ImageItem, File, Blob, atau HTMLCanvasElement)
+  let rawSource: File | Blob | HTMLCanvasElement;
+  if ('convertedBlob' in source && source.convertedBlob) {
+    rawSource = source.convertedBlob;
+  } else if ('file' in source && source.file) {
+    rawSource = source.file;
+  } else {
+    rawSource = source as File | Blob | HTMLCanvasElement;
+  }
+
+  // 1. Dapatkan senarai fail dengan laluan relativePath lengkap
+  const iconFiles = await generateAndroidIconFiles(rawSource as any);
+  const zip = new JSZip();
+
+  // 2. Susun fail ke dalam JSZip mengikut laluan folder automatik
+  for (const item of iconFiles) {
+    zip.file(item.relativePath, item.blob);
+  }
+
+  // 3. Bungkus fail ZIP dan cetuskan muat turun
+  const zipBlob = await zip.generateAsync(
+    {
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    },
+    (metadata) => {
+      onProgress?.(Math.round(metadata.percent));
+    }
+  );
+
+  downloadBlob(zipBlob, zipFileName);
 }
