@@ -77,6 +77,9 @@ export const translations = {
 
     // Export Modal
     exportModalTitle: 'Pilihan Eksport & Storan Awan',
+    exportAndroidTitle: 'Pakej Ikon APK Android',
+    exportAndroidDesc: 'Jana icon.png (1024px) & susunan folder res/mipmap (mdpi ke xxxhdpi) sedia diekstrak terus ke projek Android / Capacitor.',
+    exportAndroidAction: 'Muat Turun Ikon APK (.ZIP)',
     exportZipTitle: 'Arkib ZIP Tempatan',
     exportZipDesc: 'Pakejkan semua fail WebP yang telah siap ke dalam satu arkib fail ZIP pantas.',
     exportZipAction: 'Jana & Muat Turun ZIP',
@@ -202,6 +205,9 @@ export const translations = {
 
     // Export Modal
     exportModalTitle: 'Export & Cloud Storage Options',
+    exportAndroidTitle: 'Android APK Icon Package',
+    exportAndroidDesc: 'Generate icon.png (1024px) & res/mipmap folder structure (mdpi to xxxhdpi) ready to extract directly into your Android / Capacitor project.',
+    exportAndroidAction: 'Download APK Icons (.ZIP)',
     exportZipTitle: 'Local ZIP Archive',
     exportZipDesc: 'Bundle all converted WebP files into a single, high-speed ZIP archive.',
     exportZipAction: 'Generate & Download ZIP',
