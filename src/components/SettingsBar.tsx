@@ -137,14 +137,14 @@ export const SettingsBar: React.FC<SettingsBarProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => handleQualityChange(65)}
+                onClick={() => handleQualityChange(100)}
                 className={`flex-1 py-1 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer text-center ${
-                  settings.quality === 65
+                  settings.quality === 100
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                65% Web Kecil
+                100% Ikon APK
               </button>
             </div>
           </div>
@@ -174,39 +174,63 @@ export const SettingsBar: React.FC<SettingsBarProps> = ({
 
             {/* Custom dimensions if chosen */}
             {settings.resizeMode === 'custom' && (
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="number"
-                  placeholder="Lebar (px)"
-                  value={settings.customWidth || ''}
-                  onChange={(e) =>
-                    onChangeSettings({ ...settings, customWidth: Number(e.target.value) })
-                  }
-                  className="w-24 px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800"
-                />
-                <span className="text-slate-400 text-xs">×</span>
-                <input
-                  type="number"
-                  placeholder="Tinggi (px)"
-                  value={settings.customHeight || ''}
-                  onChange={(e) =>
-                    onChangeSettings({ ...settings, customHeight: Number(e.target.value) })
-                  }
-                  className="w-24 px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChangeSettings({
-                      ...settings,
-                      maintainAspectRatio: !settings.maintainAspectRatio,
-                    })
-                  }
-                  className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white"
-                  title={t.maintainAspect}
-                >
-                  {settings.maintainAspectRatio ? <Lock className="w-3.5 h-3.5 text-blue-500" /> : <Unlock className="w-3.5 h-3.5" />}
-                </button>
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Lebar (px)"
+                    value={settings.customWidth || ''}
+                    onChange={(e) =>
+                      onChangeSettings({ ...settings, customWidth: Number(e.target.value) })
+                    }
+                    className="w-24 px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  />
+                  <span className="text-slate-400 text-xs">×</span>
+                  <input
+                    type="number"
+                    placeholder="Tinggi (px)"
+                    value={settings.customHeight || ''}
+                    onChange={(e) =>
+                      onChangeSettings({ ...settings, customHeight: Number(e.target.value) })
+                    }
+                    className="w-24 px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChangeSettings({
+                        ...settings,
+                        maintainAspectRatio: !settings.maintainAspectRatio,
+                      })
+                    }
+                    className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                    title={t.maintainAspect}
+                  >
+                    {settings.maintainAspectRatio ? <Lock className="w-3.5 h-3.5 text-blue-500" /> : <Unlock className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                {/* Pintas Saiz Pantas Ikon Android */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChangeSettings({ ...settings, customWidth: 1024, customHeight: 1024, maintainAspectRatio: true })
+                    }
+                    className="px-2 py-0.5 text-[10px] font-medium rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                  >
+                    1024×1024 (Master)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChangeSettings({ ...settings, customWidth: 512, customHeight: 512, maintainAspectRatio: true })
+                    }
+                    className="px-2 py-0.5 text-[10px] font-medium rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                  >
+                    512×512 (Store)
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -232,6 +256,19 @@ export const SettingsBar: React.FC<SettingsBarProps> = ({
               <option value="suffix">{t.namingSuffix}</option>
               <option value="prefix">{t.namingPrefix}</option>
             </select>
+
+            {/* Input teks imbuhan nama jika pilih suffix atau prefix */}
+            {settings.fileNaming !== 'default' && (
+              <input
+                type="text"
+                placeholder={settings.fileNaming === 'suffix' ? 'Contoh: _icon' : 'Contoh: icon_'}
+                value={settings.namingCustomText || ''}
+                onChange={(e) =>
+                  onChangeSettings({ ...settings, namingCustomText: e.target.value })
+                }
+                className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            )}
 
             {/* Auto Convert checkbox */}
             <label className="flex items-center gap-2 pt-1 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
