@@ -50,24 +50,46 @@ jobs:
           cd android
           chmod +x gradlew
 
-      - name: 9. Compile Release APK
+      - name: 9. Compile Release APK (Unsigned)
         run: |
           cd android
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: 10. Sign Release APK (Guna GitHub Secrets)
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: android/app/build/outputs/apk/release
-          signingKey: ${{ secrets.KEYSTORE_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
+      - name: 10. Zipalign & Sign APK Guna Android SDK Rasmi
+        run: |
+          APK_DIR="android/app/build/outputs/apk/release"
+          
+          # 1. Nyahkod rahsia Keystore dari Base64
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+          # 2. Ambil direktori Android Build-Tools terkini yang ada dalam runner
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          echo "Menggunakan Build-Tools: $BUILD_TOOLS"
+
+          # 3. Cari fail APK hasil compile Gradle
+          UNSIGNED_APK=$(find $APK_DIR -name "*unsigned.apk" -o -name "*-release.apk" | head -n 1)
+          echo "Fail APK dijumpai: $UNSIGNED_APK"
+
+          # 4. Zipalign fail APK
+          $BUILD_TOOLS/zipalign -v -p 4 "$UNSIGNED_APK" "$APK_DIR/app-aligned.apk"
+
+          # 5. Sign APK guna apksigner rasmi Android
+          $BUILD_TOOLS/apksigner sign --ks release.keystore \
+            --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
+            --ks-pass pass:"${{ secrets.STORE_PASSWORD }}" \
+            --key-pass pass:"${{ secrets.KEY_PASSWORD }}" \
+            --out "$APK_DIR/AutoWebP-Release-Signed.apk" \
+            "$APK_DIR/app-aligned.apk"
+
+          # 6. Sahkan integriti tandatangan (Verification)
+          $BUILD_TOOLS/apksigner verify --verbose "$APK_DIR/AutoWebP-Release-Signed.apk"
+
+          # 7. Buang fail keystore sementara demi keselamatan
+          rm -f release.keystore "$APK_DIR/app-aligned.apk"
 
       - name: 11. Muat Naik Hasil Release APK Siap Sign
         uses: actions/upload-artifact@v4
         with:
           name: AutoWebP-Release-Signed-APK
-          path: ${{ steps.sign_app.outputs.signedFile }}
+          path: android/app/build/outputs/apk/release/AutoWebP-Release-Signed.apk
           retention-days: 14
