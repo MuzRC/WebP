@@ -1,12 +1,12 @@
 name: Build & Sign Release APK
 
-# Hanya jalan bila ko tekan butang 'Run workflow' secara manual
+# Hanya jalan bila ditekan secara manual
 on:
   workflow_dispatch:
 
 jobs:
   build-release:
-    name: Build, Sign & Export APK
+    name: Build & Sign Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -24,11 +24,9 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 4. Pasang Dependencies Projek & Capacitor
+      - name: 4. Pasang Dependensi Projek
         run: |
           npm install --legacy-peer-deps
-          npm install -D @capacitor/cli
-          npm install @capacitor/core @capacitor/android
 
       - name: 5. Build Web Assets (Vite)
         run: npm run build
@@ -40,14 +38,11 @@ jobs:
           fi
           npx cap sync android
 
-      - name: 7. Salin Ikon Aplikasi (Folder res / android-res)
+      - name: 7. Salin Ikon Aplikasi (Jika Ada Folder res)
         run: |
           if [ -d "res" ]; then
-            echo "Folder res dijumpai, menyalin ke android/app/src/main/res..."
+            echo "Folder res dijumpai. Menyalin ke android/app/src/main/res/..."
             cp -r res/* android/app/src/main/res/
-          elif [ -d "android-res" ]; then
-            echo "Folder android-res dijumpai, menyalin ke android/app/src/main/res..."
-            cp -r android-res/* android/app/src/main/res/
           fi
 
       - name: 8. Beri Kebenaran Gradlew
@@ -55,12 +50,12 @@ jobs:
           cd android
           chmod +x gradlew
 
-      - name: 9. Compile Release APK (Unsigned)
+      - name: 9. Compile Release APK
         run: |
           cd android
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: 10. Sign Release APK Secara Automatik
+      - name: 10. Sign Release APK (Guna GitHub Secrets)
         uses: r0adkll/sign-android-release@v1
         id: sign_app
         with:
@@ -70,7 +65,7 @@ jobs:
           keyStorePassword: ${{ secrets.STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
 
-      - name: 11. Muat Naik Hasil Release APK (Signed)
+      - name: 11. Muat Naik Hasil Release APK Siap Sign
         uses: actions/upload-artifact@v4
         with:
           name: AutoWebP-Release-Signed-APK
