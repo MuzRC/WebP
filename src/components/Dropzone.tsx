@@ -107,10 +107,12 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFilesSelected, lang }) => 
         }`}
         onClick={() => fileInputRef.current?.click()}
       >
+        {/* Input fail dengan atribut multiple */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*,.png,.jpg,.jpeg,.gif,.avif,.bmp,.svg,.webp,.tiff,.jfif"
+          multiple
           className="hidden"
           onChange={handleFileInputChange}
         />
@@ -131,11 +133,11 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFilesSelected, lang }) => 
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">
-            Lepaskan Imej Sprite Sheet di Sini
+            {(t as any).dropzoneTitle || 'Lepaskan Imej atau Ikon App di Sini'}
           </h2>
 
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-            Format disokong: PNG, JPG, JFIF, WebP (Potongan automatik mengikut mod yang dipilih di atas).
+            {(t as any).dropzoneSubtitle || 'Format disokong: PNG, JPG, JFIF, WebP (Boleh dipotong sprite atau dijana terus ke pakej ikon APK).'}
           </p>
 
           <div
